@@ -45,9 +45,10 @@ A value that starts with `http://` or `https://` is a link; anything else is a n
 ## Where data lives
 
 Entries are stored in `metadata.json` in the plugin's config directory
-(`herdr plugin config-dir momer.space-metadata`), not in this repository. They are keyed by
-`<git remote>#<directory name>`, so the same checkout shares its list across machines if you copy
-the file. Directories without a git remote are keyed by absolute path.
+(`herdr plugin config-dir momer.space-metadata`), not in this repository. They are keyed by the
+Herdr workspace id, which stays the same across restarts, so each space has its own list even when
+two spaces share a directory. Workspace ids are local to a Herdr session, so the file is not
+portable between machines.
 
 ## Sidebar summary
 

@@ -6,9 +6,9 @@
 
 An entry is {"label", "value"}. A value that is an http(s) URL is a link and enter
 opens it; anything else is a note and enter shows it in full. Entries live in
-$HERDR_PLUGIN_CONFIG_DIR/metadata.json, keyed by "<git remote>#<directory name>" so
-the same checkout shares its list across machines. Directories without a git remote
-fall back to their absolute path.
+$HERDR_PLUGIN_CONFIG_DIR/metadata.json, keyed by the Herdr workspace id, which stays
+the same across restarts. Each space has its own list, even when two spaces share a
+directory.
 """
 import curses
 import json
@@ -53,26 +53,14 @@ def save(data):
     os.replace(tmp, path)
 
 
-def git(directory, *args):
+def workspace_label(workspace):
+    """The space's display name, or "" if Herdr can't say."""
     try:
-        out = subprocess.run(["git", "-C", directory, *args], capture_output=True, text=True, timeout=2)
-    except (OSError, subprocess.SubprocessError):
+        out = subprocess.run([herdr_bin(), "workspace", "get", workspace],
+                             capture_output=True, text=True, timeout=3).stdout
+        return json.loads(out)["result"]["workspace"].get("label") or ""
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError):
         return ""
-    return out.stdout.strip() if out.returncode == 0 else ""
-
-
-def space_key(directory):
-    """Stable key for a space: git remote plus directory name, else the path itself."""
-    if not os.path.isdir(directory):
-        return directory
-    remote = git(directory, "remote", "get-url", "origin")
-    if not remote:
-        return directory
-    remote = re.sub(r"^[a-z+]+://", "", remote)  # scheme
-    remote = re.sub(r"^[^@/]+@", "", remote)  # user@
-    remote = remote.replace(":", "/", 1)  # scp-style host:path
-    remote = re.sub(r"(\.git)?/*$", "", remote)
-    return f"{remote}#{os.path.basename(directory.rstrip('/'))}"
 
 
 def cmd_open():
@@ -240,13 +228,11 @@ def ui(scr):
     curses.curs_set(0)
     curses.use_default_colors()
     curses.set_escdelay(25)
+    workspace = os.environ.get("SPACE_METADATA_WORKSPACE", "")
     directory = os.environ.get("SPACE_METADATA_DIR", "")
-    key = space_key(directory)
-    title = os.path.basename(directory.rstrip("/")) or directory or "space"
+    key = workspace or directory  # directory only if Herdr gave no workspace id
+    title = (workspace and workspace_label(workspace)) or os.path.basename(directory.rstrip("/")) or "space"
     data = load()
-    if directory and key != directory and directory in data and key not in data:
-        data[key] = data.pop(directory)  # entries saved under the old path-only key
-        save(data)
     entries = data.setdefault(key, [])
     report_sidebar(entries)
     sel, msg, query = 0, "", ""
