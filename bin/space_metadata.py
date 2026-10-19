@@ -262,7 +262,7 @@ def ui(scr):
     def activate(item):
         if is_link(item["value"]):
             open_url(item["value"])
-            return f"opened {item['label']}"
+            return None  # link opened: close the pane
         show_note(scr, item)
         return ""
 
@@ -283,7 +283,7 @@ def ui(scr):
             value = item["value"].replace("\n", " ")
             row = f" {num} {mark} {item['label']:<22.22}  {value}"[: w - 1]
             scr.addstr(2 + row_no, 0, row, curses.A_REVERSE if row_no == sel else curses.A_NORMAL)
-        footer = msg or "↵/1-9 open · a add · n note · e edit · E editor · / filter · d del · y copy · q"
+        footer = msg or "↵/1-9 open · o open+stay · a add · n note · e edit · E editor · / filter · d del · y copy · q"
         scr.addstr(h - 1, 0, footer[: w - 1], curses.A_DIM)
         scr.refresh()
         msg = ""
@@ -302,9 +302,16 @@ def ui(scr):
             sel = (sel - 1) % len(shown)
         elif ch in ("\n", "\r") and shown:
             msg = activate(entries[cur])
+            if msg is None:
+                return
         elif isinstance(ch, str) and ch in "123456789" and int(ch) <= len(shown):
             sel = int(ch) - 1
             msg = activate(entries[shown[sel]])
+            if msg is None:
+                return
+        elif ch == "o" and shown and is_link(entries[cur]["value"]):
+            open_url(entries[cur]["value"])
+            msg = f"opened {entries[cur]['label']}"
         elif ch == "/":
             typed = prompt(scr, "Filter: ", query)
             if typed is not None:

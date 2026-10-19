@@ -30,7 +30,8 @@ description = "space metadata"
 | Key | Action |
 | --- | --- |
 | `j` / `k`, arrows | move |
-| `enter`, `1`-`9` | open a link, or show a note in full |
+| `enter`, `1`-`9` | open a link and close the view, or show a note in full |
+| `o` | open a link and stay in the view |
 | `a` | add a link or one-line note (URL prefilled from the clipboard) |
 | `n` | add a multi-line note in `$VISUAL` / `$EDITOR` |
 | `e` / `E` | edit in the prompt / edit the value in the editor |
