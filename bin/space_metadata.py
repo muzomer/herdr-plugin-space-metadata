@@ -5,10 +5,11 @@
   space_metadata.py ui     pane: curses list to browse, open, add, edit, delete entries
 
 An entry is {"label", "value"}. A value that is an http(s) URL is a link and enter
-opens it; anything else is a note and enter shows it in full. Entries live in
+opens it; anything else is a note and enter shows it in full. The index lives in
 $HERDR_PLUGIN_STATE_DIR/metadata.json, keyed by the Herdr workspace id, which stays
 the same across restarts. Each space has its own list, even when two spaces share a
-directory.
+directory. A note's text lives in its own markdown file under notes/<space>/; the
+index stores only its path, so the rest of the code sees the same {"label", "value"}.
 """
 import curses
 import json
@@ -20,23 +21,30 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
+import uuid
 from urllib.parse import urlparse
 
 URL_RE = re.compile(r"https?://\S+$")
 SOURCE = "space-metadata"
 TOKEN = "meta"
+NOTES_DIR = "notes"
 
 
 def herdr_bin():
     return os.environ.get("HERDR_BIN_PATH") or "herdr"
 
 
-def store_path():
+def state_dir():
     # Entries are state, not settings, so they go in the state dir, not the config dir.
     d = os.environ.get("HERDR_PLUGIN_STATE_DIR") or os.path.join(
         os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "herdr-space-metadata")
     os.makedirs(d, exist_ok=True)
-    path = os.path.join(d, "metadata.json")
+    return d
+
+
+def store_path():
+    path = os.path.join(state_dir(), "metadata.json")
     migrate_from_config_dir(path)
     return path
 
@@ -50,20 +58,81 @@ def migrate_from_config_dir(path):
         shutil.move(old, path)
 
 
+def write_atomic(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def note_path(rel):
+    return os.path.join(state_dir(), rel)
+
+
+def new_note_file(key):
+    """A fresh path, relative to the state dir. It never changes, so renaming the label
+    keeps the file; the timestamp keeps a folder listing in creation order."""
+    space = re.sub(r"[^\w.-]", "_", key) or "space"
+    name = f"{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.md"
+    return os.path.join(NOTES_DIR, space, name)
+
+
+def read_note(rel):
+    """The note's text, or None if its file is gone."""
+    try:
+        with open(note_path(rel)) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def remove_note(entry):
+    if entry.get("file"):
+        try:
+            os.unlink(note_path(entry["file"]))
+        except OSError:
+            pass
+
+
 def load():
+    """Read the index and fill in each note's text from its file."""
     try:
         with open(store_path()) as f:
-            return json.load(f)
+            data = json.load(f)
     except (OSError, ValueError):
         return {}
+    inline = False
+    for entries in data.values():
+        for e in entries:
+            if "file" in e:
+                text = read_note(e["file"])
+                e["value"] = text or ""
+                if text is None:
+                    e["missing"] = True  # keep the row so the user sees it and can fix or delete it
+            elif not is_link(e["value"]):
+                inline = True  # older versions kept note text inside the index
+    if inline:
+        save(data)
+    return data
 
 
 def save(data):
-    path = store_path()
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
-    with os.fdopen(fd, "w") as f:
-        json.dump(data, f, indent=2)
-    os.replace(tmp, path)
+    """Write each note's text to its own file, then the index without note text."""
+    index = {}
+    for key, entries in data.items():
+        index[key] = []
+        for e in entries:
+            if is_link(e["value"]):
+                index[key].append({"label": e["label"], "value": e["value"]})
+                continue
+            e.setdefault("file", new_note_file(key))
+            # Only rewrite changed notes, so mtimes stay meaningful; never recreate a
+            # missing file with empty text.
+            if not e.get("missing") and read_note(e["file"]) != e["value"]:
+                write_atomic(note_path(e["file"]), e["value"] + "\n")
+            index[key].append({"label": e["label"], "file": e["file"]})
+    write_atomic(store_path(), json.dumps(index, indent=2))
 
 
 def workspace_label(workspace):
@@ -279,7 +348,7 @@ def ui(scr):
             item = entries[i]
             num = str(row_no + 1) if row_no < 9 else " "
             mark = "↗" if is_link(item["value"]) else "✎"
-            value = item["value"].replace("\n", " ")
+            value = "(missing file)" if item.get("missing") else item["value"].replace("\n", " ")
             row = f" {num} {mark} {item['label']:<22.22}  {value}"[: w - 1]
             scr.addstr(2 + row_no, 0, row, curses.A_REVERSE if row_no == sel else curses.A_NORMAL)
         footer = msg or "↵/1-9 open · o open+stay · a add · n note · e edit · E editor · / filter · d del · y copy · q"
@@ -327,12 +396,18 @@ def ui(scr):
         elif ch in ("e", "E") and shown:
             new = edit_entry(scr, entries[cur], use_editor=(ch == "E"))
             if new:
+                old = entries[cur]
+                if old.get("file") and not is_link(new["value"]):
+                    new["file"] = old["file"]  # same file, so its path never changes
+                else:
+                    remove_note(old)  # became a link: its file has nothing to hold
                 entries[cur] = new
                 changed()
         elif ch == "d" and shown:
             if prompt(scr, f"Delete '{entries[cur]['label']}'? type y: ") == "y":
-                del entries[cur]
+                gone = entries.pop(cur)
                 changed()
+                remove_note(gone)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,11 @@ Entries are state, not settings, so they are stored in `metadata.json` in the pl
 directory (`~/.local/state/herdr/plugins/momer.space-metadata`), not in this repository. Older
 versions kept the file in the config directory; it is moved over the first time the plugin runs.
 
+Each note is a markdown file in `notes/<space>/` next to `metadata.json`, which only stores its
+path. You can read, grep or back up the notes with any tool. Notes saved inside `metadata.json` by
+older versions are moved to files on first load. If a note's file is deleted, the entry shows
+`(missing file)` until you edit or delete it.
+
 Entries are keyed by the Herdr workspace id, which stays the same across restarts, so each space
 has its own list even when two spaces share a directory. Workspace ids are local to a Herdr
 session, so the file is not portable between machines.
