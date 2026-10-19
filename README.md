@@ -44,11 +44,13 @@ A value that starts with `http://` or `https://` is a link; anything else is a n
 
 ## Where data lives
 
-Entries are stored in `metadata.json` in the plugin's config directory
-(`herdr plugin config-dir momer.space-metadata`), not in this repository. They are keyed by the
-Herdr workspace id, which stays the same across restarts, so each space has its own list even when
-two spaces share a directory. Workspace ids are local to a Herdr session, so the file is not
-portable between machines.
+Entries are state, not settings, so they are stored in `metadata.json` in the plugin's state
+directory (`~/.local/state/herdr/plugins/momer.space-metadata`), not in this repository. Older
+versions kept the file in the config directory; it is moved over the first time the plugin runs.
+
+Entries are keyed by the Herdr workspace id, which stays the same across restarts, so each space
+has its own list even when two spaces share a directory. Workspace ids are local to a Herdr
+session, so the file is not portable between machines.
 
 ## Sidebar summary
 

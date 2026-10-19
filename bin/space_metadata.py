@@ -6,7 +6,7 @@
 
 An entry is {"label", "value"}. A value that is an http(s) URL is a link and enter
 opens it; anything else is a note and enter shows it in full. Entries live in
-$HERDR_PLUGIN_CONFIG_DIR/metadata.json, keyed by the Herdr workspace id, which stays
+$HERDR_PLUGIN_STATE_DIR/metadata.json, keyed by the Herdr workspace id, which stays
 the same across restarts. Each space has its own list, even when two spaces share a
 directory.
 """
@@ -32,9 +32,22 @@ def herdr_bin():
 
 
 def store_path():
-    d = os.environ.get("HERDR_PLUGIN_CONFIG_DIR") or os.path.expanduser("~/.config/herdr-space-metadata")
+    # Entries are state, not settings, so they go in the state dir, not the config dir.
+    d = os.environ.get("HERDR_PLUGIN_STATE_DIR") or os.path.join(
+        os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "herdr-space-metadata")
     os.makedirs(d, exist_ok=True)
-    return os.path.join(d, "metadata.json")
+    path = os.path.join(d, "metadata.json")
+    migrate_from_config_dir(path)
+    return path
+
+
+def migrate_from_config_dir(path):
+    """Move metadata.json from the config dir, where older versions kept it, once."""
+    old_dir = os.environ.get("HERDR_PLUGIN_CONFIG_DIR") or os.path.expanduser("~/.config/herdr-space-metadata")
+    old = os.path.join(old_dir, "metadata.json")
+    # Never overwrite: if both exist, the state dir copy is the newer one.
+    if os.path.exists(old) and not os.path.exists(path):
+        shutil.move(old, path)
 
 
 def load():
