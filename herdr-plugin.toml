@@ -1,0 +1,20 @@
+id = "momer.space-metadata"
+name = "Space metadata"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Attach links and notes to a space and browse them from the keyboard."
+platforms = ["linux", "macos"]
+
+# Headless: reads the focused space from Herdr's context, then opens the pane.
+[[actions]]
+id = "open"
+title = "Space metadata"
+contexts = ["workspace", "global"]
+command = ["python3", "./bin/space_metadata.py", "open"]
+
+# Keyboard-driven list the action opens over the session.
+[[panes]]
+id = "metadata"
+title = "Space metadata"
+placement = "overlay"
+command = ["python3", "./bin/space_metadata.py", "ui"]
