@@ -6,7 +6,7 @@ space, and browse them from the keyboard. Python 3, standard library only, no bu
 ## Install
 
 ```sh
-herdr plugin install <github-user>/herdr-plugin-space-metadata
+herdr plugin install muzomer/herdr-plugin-space-metadata
 ```
 
 For local development:
