@@ -34,7 +34,8 @@ description = "space metadata"
 | `o` | open a link and stay in the view |
 | `a` | add a link or one-line note (URL prefilled from the clipboard) |
 | `n` | add a multi-line note in `$VISUAL` / `$EDITOR` |
-| `e` / `E` | edit in the prompt / edit the value in the editor |
+| `e` | open the value in `$VISUAL` / `$EDITOR`, then close the view when you quit (label kept, saved only if changed) |
+| `E` | edit the value, then the label (multi-line values open in the editor) |
 | `/` | filter by label or value (`esc` clears it) |
 | `d` | delete (type `y` to confirm) |
 | `y` | copy the value to the clipboard |

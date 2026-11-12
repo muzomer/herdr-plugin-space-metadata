@@ -292,14 +292,18 @@ def show_note(scr, item):
     scr.get_wch()
 
 
-def edit_entry(scr, item=None, use_editor=False):
-    """Collect value then label. Returns an entry dict, or None if cancelled."""
+def edit_entry(scr, item=None, use_editor=False, keep_label=False):
+    """Collect value then label. Returns an entry dict, or None if cancelled.
+
+    With keep_label, an existing item keeps its label and no label prompt is shown."""
     if use_editor or (item and "\n" in item["value"]):
         value = edit_in_editor(scr, item["value"] if item else "")
     else:
         value = prompt(scr, "URL or note: ", item["value"] if item else clipboard_url())
     if not value:
         return None
+    if keep_label and item:
+        return {"label": item["label"], "value": value}
     label = prompt(scr, "Label: ", item["label"] if item else default_label(value))
     if label is None:
         return None
@@ -351,7 +355,7 @@ def ui(scr):
             value = "(missing file)" if item.get("missing") else item["value"].replace("\n", " ")
             row = f" {num} {mark} {item['label']:<22.22}  {value}"[: w - 1]
             scr.addstr(2 + row_no, 0, row, curses.A_REVERSE if row_no == sel else curses.A_NORMAL)
-        footer = msg or "↵/1-9 open · o open+stay · a add · n note · e edit · E editor · / filter · d del · y copy · q"
+        footer = msg or "↵/1-9 open · o open+stay · a add · n note · e editor · E edit+label · / filter · d del · y copy · q"
         scr.addstr(h - 1, 0, footer[: w - 1], curses.A_DIM)
         scr.refresh()
         msg = ""
@@ -394,15 +398,17 @@ def ui(scr):
                 sel = len(entries) - 1
                 changed()
         elif ch in ("e", "E") and shown:
-            new = edit_entry(scr, entries[cur], use_editor=(ch == "E"))
-            if new:
-                old = entries[cur]
+            old = entries[cur]
+            new = edit_entry(scr, old, use_editor=(ch == "e"), keep_label=(ch == "e"))
+            if new and (new["label"], new["value"]) != (old["label"], old["value"]):
                 if old.get("file") and not is_link(new["value"]):
                     new["file"] = old["file"]  # same file, so its path never changes
                 else:
                     remove_note(old)  # became a link: its file has nothing to hold
                 entries[cur] = new
                 changed()
+            if ch == "e":
+                return  # leaving the editor closes the pane too
         elif ch == "d" and shown:
             if prompt(scr, f"Delete '{entries[cur]['label']}'? type y: ") == "y":
                 gone = entries.pop(cur)
