@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Per-space metadata (links and notes) for Herdr. Stdlib only.
 
-  space_metadata.py open   action: find the focused space, open the overlay pane
+  space_metadata.py open        action: find the focused space, open the overlay pane
+  space_metadata.py open-split  action: same, in a split to the right of the focused pane
   space_metadata.py ui     pane: curses list to browse, open, add, edit, delete entries
 
 An entry is {"label", "value"}. A value that is an http(s) URL is a link and enter
@@ -145,7 +146,7 @@ def workspace_label(workspace):
         return ""
 
 
-def cmd_open():
+def cmd_open(placement=("overlay",)):
     ctx = {}
     try:
         ctx = json.loads(os.environ.get("HERDR_PLUGIN_CONTEXT_JSON") or "{}")
@@ -155,7 +156,7 @@ def cmd_open():
     directory = ctx.get("workspace_cwd") or ctx.get("focused_pane_cwd") or workspace
     plugin_id = os.environ.get("HERDR_PLUGIN_ID") or "momer.space-metadata"
     cmd = [herdr_bin(), "plugin", "pane", "open", "--plugin", plugin_id,
-           "--entrypoint", "metadata", "--placement", "overlay", "--focus",
+           "--entrypoint", "metadata", "--placement", *placement, "--focus",
            "--env", f"SPACE_METADATA_DIR={directory}",
            "--env", f"SPACE_METADATA_WORKSPACE={workspace}"]
     sys.exit(subprocess.call(cmd))
@@ -420,7 +421,9 @@ if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     if mode == "open":
         cmd_open()
+    elif mode == "open-split":
+        cmd_open(("split", "--direction", "right"))
     elif mode == "ui":
         curses.wrapper(ui)
     else:
-        sys.exit("usage: space_metadata.py open|ui")
+        sys.exit("usage: space_metadata.py open|open-split|ui")

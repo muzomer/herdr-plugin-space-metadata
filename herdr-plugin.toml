@@ -12,6 +12,13 @@ title = "Space metadata"
 contexts = ["workspace", "global"]
 command = ["python3", "./bin/space_metadata.py", "open"]
 
+# Same list in a split to the right, to keep a note visible next to your work.
+[[actions]]
+id = "open-split"
+title = "Space metadata (split)"
+contexts = ["workspace", "global"]
+command = ["python3", "./bin/space_metadata.py", "open-split"]
+
 # Keyboard-driven list the action opens over the session.
 [[panes]]
 id = "metadata"

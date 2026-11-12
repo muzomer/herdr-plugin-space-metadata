@@ -25,6 +25,17 @@ command = "momer.space-metadata.open"
 description = "space metadata"
 ```
 
+To keep a note visible next to your work, bind the `open-split` action too. It opens the same list
+in a split to the right of the focused pane instead of over it:
+
+```toml
+[[keys.command]]
+key = "ctrl+shift+m"
+type = "plugin_action"
+command = "momer.space-metadata.open-split"
+description = "space metadata (split)"
+```
+
 ## Keys
 
 | Key | Action |
